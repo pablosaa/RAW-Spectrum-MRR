@@ -32,6 +32,7 @@ contains
     integer :: idx, idh, Sini, Send
     integer :: i_range(Nh), Fnoise(Nspec)
     real :: Etha_tot(Nh,Ndata), Etha(Nh, Nspec), F_corr(Nspec)
+    real, dimension(Nh,Nspec,Ndata) :: Etha_tmp
     real :: F_ave=-99, del_H, tmp(Nh), lambda
     real :: delDn(Nspec)
 
@@ -77,14 +78,14 @@ contains
     ! Calculating the Etha total reflectivity
     do idx=1,Ndata
        do idh=1,Nh
-          if (idh>2.AND.idh<Nh-3) then
+          if (idh>4.AND.idh<Nh-3) then  ! old-version >2.AND.<Nh-3
              Sini = 1
              Send = Nspec
           else
-             Sini = 5
-             Send = 60
+             Sini = 6
+             Send = 55 !60
           end if
-          Fnoise = 0.
+          Fnoise = 0
           Etha(idh,:) = 0.
           Fnoise(Sini:Send) = Fnn(idh,Sini:Send,idx)
           call Fnoise_corr(Fnoise,idh,Sini,Send,F_corr,F_ave)
@@ -95,18 +96,34 @@ contains
           Etha(idh,Sini:Send) = tmp(idh)*F_corr(Sini:Send)
           ! Estimating Drop Size Distribution
           DSD(idh,:,idx) = -99.
+          Etha_tmp(idh,:,idx) = -99.0
+          Etha_tmp(idh,:,idx) = Etha(idh,:)
           if(idh.LT.4) then
-             DSD(idh,:,idx) = 1.E6*Etha(idh,:)*dVndD(idh,:)/sigma_B/0.1887
+             DSD(idh,:,idx) = 1.E6*dVndD(idh,:)/sigma_B/0.1887  ! *Etha(idh,:)
           else
-             DSD(idh,:,idx) = 1.E6*Etha(idh,:)*dVndD(idh,:)*lambda**4/PI**5/Kappa2/0.1887/(Dn**6)
+             DSD(idh,:,idx) = 1.E6*dVndD(idh,:)*lambda**4/PI**5/Kappa2/0.1887/(Dn**6)  ! *Etha(idh,:)
           end if
        end do ! end loop over range
        Etha_tot(:,idx) = tmp*Etha_tot(:,idx)
-       ZdBz(:,idx) = 10.*log10(matmul(DSD(:,:,idx),delDn*Dn**6))
+       !! ZdBz(:,idx) = 10.*log10(matmul(DSD(:,:,idx),delDn*Dn**6))
     end do    ! end loop over number of data
+    ! ------------------------------
+    ! Weigthed average for the spectral-reflectivity with the previous and next profile on time:
+    Etha_tmp(:,:,1) = (2*Etha_tmp(:,:,1) + 0.5*Etha_tmp(:,:,2) + 0.5*Etha_tmp(:,:,3))/3
+    Etha_tmp(:,:,2:Ndata-1) = (0.5*Etha_tmp(:,:,1:Ndata-2) + 2*Etha_tmp(:,:,2:Ndata-1) + 0.5*Etha_tmp(:,:,3:Ndata))/3
+    Etha_tmp(:,:,Ndata) = (2*Etha_tmp(:,:,Ndata) + 0.5*Etha_tmp(:,:,Ndata-1) + 0.5*Etha_tmp(:,:,Ndata-2))/3
+    ! ------------------------------------
+    ! Computing the Reflectivity and DSD:
+    DSD = DSD*Etha_tmp
+    where (Etha_tmp<=0.0) DSD = 0.0
+    Etha_tot = SUM(Etha_tmp,DIM=2)
     ZdBz = -99.   ! for NaNs
+    where (SNR <= 0.)
+       Etha_tot = -99.   ! Not considering when Signal-to-Noise ratio is negative
+       SNR = -99.
+    end where
     where (Etha_tot>0.0) ZdBz = 10.*log10(1.E6*Etha_tot*lambda**4/PI**5/Kappa2)
-    where (SNR <= 0.) SNR = -99.
+
     print *, 'Reflectivity calculated'
     return
   end subroutine calc_ref_Z
@@ -142,7 +159,7 @@ contains
     Ave_last = real(sum(F_noise))/real(Ntotal)
     ! Starting the noise level estimation
     do k = Sini,Send
-       F_noise(imax) = 0d0       ! take out the spectral highest value
+       F_noise(imax) = 0       ! take out the spectral highest value
        Ntotal = 0
        F_ave = 0.
        Ntotal = count(F_noise(Sini:Send).NE.0)

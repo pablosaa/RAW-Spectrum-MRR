@@ -16,9 +16,6 @@ RM = rm -f
 $(EXEC): $(OBJECT) $(OBJ)read_RAW_Cfile.o $(OBJ)psg_netcdf.o $(OBJ)extras.o $(OBJ)var_init.o
 	$(FCC) $^ -o $@ -L$(LIBS) -lnetcdff
 
-$(OBJECT): $(SRC)$(SOURCE) $(MOD)variables.mod $(MOD)extras.mod $(MOD)psg_nc.mod
-	$(FCC) $(FLAGS) -c $(SOURCE) -o $@ 
-
 $(OBJ)read_RAW_Cfile.o: $(SRC)read_RAW_Cfile.c
 	$(GCC) -Wall -O3 -c $^ -o $@
 
@@ -33,6 +30,10 @@ $(OBJ)psg_netcdf.o: $(SRC)psg_netcdf.F90
 $(MOD)variables.mod: $(OBJ)var_init.o
 $(OBJ)var_init.o: $(SRC)var_init.F90
 	$(FCC) $(FLAGS) $^ -o $@
+
+$(OBJECT): $(SRC)$(SOURCE) $(MOD)variables.mod $(MOD)extras.mod $(MOD)psg_nc.mod
+	$(FCC) $(FLAGS) -c $(SRC)$(SOURCE) -o $@ 
+
 
 clean:
 	$(RM) $(MOD)*.mod
