@@ -36,7 +36,8 @@ void read_raw_cfile_(char *fname, int *Ndat, float *t_hr, int *height, int Fnn[N
   float dvs;
   char key[]="xx", spkey[]="xxx", buffer[NLINE+1];
   char head1[]="T:%2d%2d%2d%2d%2d%2d UTC DVS %4f DSN %6d CC %7d\n";
-  char head2[]="MRR %2d%2d%2d%2d%2d%2d UTC DVS %4f DSN %9d BW %5d CC %7d MDQ %3d %2d %2d TYP RAW\n";
+  //char head2[]="MRR %2d%2d%2d%2d%2d%2d UTC DVS %4f DSN %9d BW %5d CC %7d MDQ %3d %2d %2d TYP RAW\n";
+  char head2[]="MRR %2d%2d%2d%2d%2d%2d UTC DVS %f DSN %d BW %d CC %d MDQ %3d %2d %2d TYP RAW\n";
   bool OLDVER=false, NEWDATA=false;
 
   printf("Working at %s\n",fname);
@@ -71,7 +72,8 @@ void read_raw_cfile_(char *fname, int *Ndat, float *t_hr, int *height, int Fnn[N
       status = sscanf(buffer,head2,&yy,&mm,&dd,&hr,&mi,&se,&dvs,&dsn,&bw,CC,&mdq[0],&mdq[1],&mdq[2]); 
       if(status==13 && dvs>=6) OLDVER=false;
       else {
-	printf("ERROR: Firmware version not identified\n");
+	printf("%s",buffer);
+	printf("ERROR: Firmware version %f not identified at %d %d %d %d %d %d \n", dvs,yy,mm,dd,hr,mi,se);
 	*exitcode = -1;
 	return;}
     }
